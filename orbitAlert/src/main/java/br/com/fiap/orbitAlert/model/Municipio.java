@@ -39,12 +39,12 @@ public class Municipio extends BaseEntity {
     private String nmEstado;
 
     @NotNull(message = "A latitude é obrigatória")
-    @Column(name = "NR_LATITUDE", nullable = false, precision = 10, scale = 7)
+    @Column(name = "NR_LATITUDE", nullable = false)
     @Schema(description = "Latitude do centroide do município em graus decimais.")
     private Double nrLatitude;
 
     @NotNull(message = "A longitude é obrigatória")
-    @Column(name = "NR_LONGITUDE", nullable = false, precision = 10, scale = 7)
+    @Column(name = "NR_LONGITUDE", nullable = false)
     @Schema(description = "Longitude do centroide do município em graus decimais.")
     private Double nrLongitude;
 

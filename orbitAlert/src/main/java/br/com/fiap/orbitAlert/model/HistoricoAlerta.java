@@ -55,4 +55,13 @@ public class HistoricoAlerta {
     @JoinColumn(name = "ID_ALERTA", nullable = false)
     @Schema(description = "Alerta ao qual este histórico pertence.")
     private Alerta alerta;
+
+    public void atualizar(HistoricoAlerta historicoAlerta) {
+        this.stStatusAnt = historicoAlerta.getStStatusAnt();
+        this.stStatusNovo = historicoAlerta.getStStatusNovo();
+        this.nrIndiceRisco = historicoAlerta.getNrIndiceRisco();
+        this.dsObservacao = historicoAlerta.getDsObservacao();
+        this.nmUsuarioMod = historicoAlerta.getNmUsuarioMod();
+        this.dtAlteracao = historicoAlerta.getDtAlteracao();
+    }
 }

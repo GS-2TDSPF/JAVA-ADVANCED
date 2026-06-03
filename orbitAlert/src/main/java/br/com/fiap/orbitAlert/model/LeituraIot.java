@@ -25,18 +25,18 @@ public class LeituraIot {
     private Long id;
 
     @NotNull(message = "A temperatura é obrigatória")
-    @Column(name = "NR_TEMPERATURA", nullable = false, precision = 5, scale = 2)
+    @Column(name = "NR_TEMPERATURA", nullable = false)
     @Schema(description = "Temperatura do ar em graus Celsius lida pelo DHT22.")
     private Double nrTemperatura;
 
     @NotNull(message = "A umidade é obrigatória")
     @DecimalMin(value = "0.0", message = "Umidade deve ser no mínimo 0%")
     @DecimalMax(value = "100.0", message = "Umidade deve ser no máximo 100%")
-    @Column(name = "NR_UMIDADE", nullable = false, precision = 5, scale = 2)
+    @Column(name = "NR_UMIDADE", nullable = false)
     @Schema(description = "Umidade relativa do ar em % lida pelo DHT22.")
     private Double nrUmidade;
 
-    @Column(name = "NR_CHUVA_MM", nullable = false, precision = 6, scale = 2)
+    @Column(name = "NR_CHUVA_MM", nullable = false)
     @Schema(description = "Precipitação acumulada em milímetros.")
     private Double nrChuvaMm = 0.0;
 
