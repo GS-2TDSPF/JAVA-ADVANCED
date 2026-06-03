@@ -18,20 +18,21 @@ public class SegurancaConfig {
     @Bean
     public SecurityFilterChain filtrar(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .headers(header -> header.frameOptions(
-                    HeadersConfigurer.FrameOptionsConfig::disable))
-            .authorizeHttpRequests(request -> request
-                    .requestMatchers(
-                            "/autenticacao/**",
-                            "/swagger-ui/**",
-                            "/v3/**",
-                            "/swagger/**"
-                    ).permitAll()
-                    .anyRequest().authenticated())
-            .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
-            .sessionManagement(session -> session
-                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .csrf(csrf -> csrf.disable())
+                .headers(header -> header.frameOptions(
+                        HeadersConfigurer.FrameOptionsConfig::disable))
+                .authorizeHttpRequests(request -> request
+                        .requestMatchers(
+                                "/autenticacao/**",
+                                "/usuario/novo",
+                                "/swagger-ui/**",
+                                "/v3/**",
+                                "/swagger/**"
+                        ).permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
     }
