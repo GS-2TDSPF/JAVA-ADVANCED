@@ -39,7 +39,7 @@ public class AnaliseIa {
     @Schema(description = "Identificador do modelo de IA utilizado.")
     private String dsModeloIa = "claude-sonnet-4-20250514";
 
-    @Column(name = "NR_TOKEN_USADOS")
+    @Column(name = "NR_TOKENS_USADOS")
     @Schema(description = "Quantidade de tokens consumidos na geração da análise.")
     private Long nrTokenUsados;
 
