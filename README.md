@@ -8,7 +8,7 @@
 
 O **OrbitAlert** é uma plataforma de alertas precoces de desastres naturais que combina dados do satélite Sentinel-1 (ESA/Copernicus) com inteligência artificial generativa para antecipar eventos de deslizamento e enchente com até 48 horas de antecedência.
 
-Esta API Java Spring Boot é o **hub central** da solução — consome dados orbitais, calcula o índice de risco, aciona a Claude API para análise em linguagem natural, gerencia o ciclo de vida dos alertas e serve o aplicativo mobile e as estações IoT de campo.
+Esta API Java Spring Boot é o **hub central** da solução — gerencia o ciclo de vida dos alertas, persiste leituras IoT, aciona a Claude API para análise em linguagem natural e serve o aplicativo mobile.
 
 ---
 
@@ -28,10 +28,9 @@ Esta API Java Spring Boot é o **hub central** da solução — consome dados or
 | Recurso | Link |
 |---|---|
 | 🚀 **Deploy (Railway)** | `https://orbitalert.up.railway.app` |
-| 📄 **Swagger / OpenAPI** | `https://orbitalert.up.railway.app/swagger` |
+| 📄 **Swagger / OpenAPI** | `http://localhost:8080/swagger-ui/index.html#/` |
 | 🎥 **Vídeo de Apresentação** | *(link após gravação)* |
-| 🎬 **Vídeo Pitch** | *(link após gravação)* |
-| 📦 **GitHub** | `https://github.com/orbitalert-gs/orbitalert-java` |
+| 📦 **GitHub** | `https://github.com/GS-2TDSPF/JAVA-ADVANCED` |
 
 ---
 
@@ -39,30 +38,26 @@ Esta API Java Spring Boot é o **hub central** da solução — consome dados or
 
 ```
 React Native (App Mobile)
-        │ HTTPS/JWT
+        │ HTTPS + JWT
         ▼
-Java Spring Boot (API Central)  ←── ESP32 (MQTT/HiveMQ)
-        │              │
-        ▼              ▼
-   Oracle DB     Claude API (IA)
+Java Spring Boot (API Central) ←── ESP32 POST /leitura-iot/mqtt
         │
-        └── ASP.NET Core (mesmo banco)
+        ├── Oracle DB (oracle.fiap.com.br:1521:ORCL)
+        └── Claude API (Análise IA por alerta)
 ```
 
 ### Stack
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | Java 21 + Spring Boot 4 |
-| ORM | Spring Data JPA + Hibernate |
-| Banco de Dados | Oracle DB (FIAP) + PostgreSQL (Docker) |
+| Backend | Java 21 + Spring Boot 4.0.6 |
+| ORM | Spring Data JPA + Hibernate + Oracle Dialect |
+| Banco de Dados | Oracle DB FIAP |
 | Segurança | Spring Security + JWT (jjwt 0.12.6) |
 | Documentação | SpringDoc OpenAPI 3 / Swagger |
 | Cache | Spring Cache (Simple) |
 | Mapeamento | MapStruct 1.6.3 |
-| IA Generativa | Claude API (Anthropic) |
-| IoT | ESP32 + MQTT TLS + HiveMQ Cloud |
-| Deploy | Railway + Docker |
+| IoT | ESP32 → POST /leitura-iot/mqtt |
 
 ---
 
@@ -71,12 +66,12 @@ Java Spring Boot (API Central)  ←── ESP32 (MQTT/HiveMQ)
 ```
 br.com.fiap.orbitAlert
 ├── config/          → SwaggerConfig, CorsConfig, GlobalExceptionHandler, Exceptions
-├── control/         → REST Controllers (11) + AutenticacaoController
-├── dto/             → DTOs com Bean Validation (11)
-├── mapper/          → MapStruct Mappers (11)
-├── model/           → Entidades JPA (12) + Enums (3) + Records (4)
-│   ├── enums/
-└── records/
+├── control/         → Controllers (11) + AutenticacaoController
+├── dto/             → DTOs (11)
+├── mapper/          → MapStruct Interfaces (11)
+├── model/           → Entidades JPA (12) + BaseEntity
+│   └── enums/       → StatusAlertaEnum, TipoPerfilEnum, TipoNotificacaoEnum
+├── records/         → AlertaResumoRecord, LeituraIotRecord, MunicipioRiscoRecord, ErroResponseRecord
 ├── repository/      → JPA Repositories (11)
 ├── security/        → JWTUtil, JWTAuthFilter, SegurancaConfig, UsuarioConfig, AuthManager
 └── service/         → CachingServices (10) + PaginacaoServices (10)
@@ -86,7 +81,7 @@ br.com.fiap.orbitAlert
 
 ## 🗄️ Banco de Dados
 
-O projeto utiliza Oracle DB com tabelas criadas via DDL. As entidades JPA apenas mapeam as tabelas existentes — **não recria o banco** (`ddl-auto=none`).
+Utiliza Oracle DB com tabelas criadas via DDL. O JPA apenas mapeia — **não recria o banco** (`ddl-auto=none`).
 
 ### Tabelas Mapeadas
 
@@ -99,52 +94,68 @@ TB_ALERTA              TB_ANALISE_IA
 TB_HISTORICO_ALERTA    TB_NOTIFICACAO
 ```
 
-### Modelagem Avançada
+---
 
-| Recurso | Implementação |
-|---|---|
-| Herança | `BaseEntity` com `DT_CADASTRO` — `Usuario`, `Municipio`, `ZonaRisco` estendem |
-| Chave composta | `UsuarioMunicipioPK` (`@Embeddable`) em `UsuarioMunicipio` (`@EmbeddedId`) |
-| Relacionamentos | `@OneToMany`, `@ManyToOne`, `@OneToOne` (AnaliseIa ↔ Alerta) |
-| Java Records | `AlertaResumoRecord`, `LeituraIotRecord`, `ErroResponseRecord`, `MunicipioRiscoRecord` |
+## 🔐 Autenticação — Passo a Passo
+
+A API usa **Spring Security + JWT**. Siga esta ordem obrigatória:
+
+### 1. Criar usuário (sem token)
+
+```http
+POST /usuario/novo
+Content-Type: application/json
+
+{
+  "nmUsuario": "Gabriel Sbrana",
+  "dsEmail": "gabriel@orbitalert.com.br",
+  "dsSenhaHash": "minhasenha123",
+  "tpPerfil": "ADMIN",
+  "stAtivo": "S"
+}
+```
+
+> A senha é enviada em texto plano — a API encoda com **BCrypt** automaticamente antes de salvar.
 
 ---
 
-## 🔐 Autenticação
+### 2. Autenticar e obter o token
 
-A API usa **Spring Security + JWT**. Endpoints protegidos exigem o token no header:
-
-```
-Authorization: Bearer <token>
+```http
+POST /autenticacao/login?email=gabriel@orbitalert.com.br&password=minhasenha123&duracao=60
 ```
 
-### Fluxo
-
+**Resposta:**
 ```
-1. POST /usuario/novo         → cadastra usuário (senha encodada com BCrypt)
-2. POST /autenticacao/login   → retorna JWT token
-3. Qualquer endpoint          → Authorization: Bearer <token>
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJnYWJyaWVsQG9yYml0YWxlcnQuY29tLmJyIi...
 ```
 
-### Endpoints públicos (sem token)
+> O token tem validade de **60 minutos** por padrão.
 
+---
+
+### 3. Usar o token em todas as requisições protegidas
+
+```http
+GET /alerta/todos
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
-POST /autenticacao/login
-GET  /swagger-ui/**
-GET  /v3/**
-GET  /swagger/**
+
+No Swagger, clique em **Authorize** (cadeado) e cole:
+```
+Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
 ---
 
-## 🚀 Como Rodar
+## 🚀 Como Rodar Localmente
 
 ### Pré-requisitos
 
 - Java 21+
 - Maven 3.8+
-- IntelliJ IDEA (recomendado)
-- Acesso ao Oracle FIAP (`oracle.fiap.com.br:1521:ORCL`)
+- IntelliJ IDEA ou VS Code com extensão Java
+- Acesso à rede FIAP ou VPN (`oracle.fiap.com.br:1521:ORCL`)
 
 ### Passos
 
@@ -154,13 +165,13 @@ git clone https://github.com/orbitalert-gs/orbitalert-java.git
 cd orbitalert-java
 ```
 
-**2. Configure o `application.properties`**
+**2. Configure suas credenciais no `application.properties`**
 ```properties
 spring.datasource.username=SEU_RM
 spring.datasource.password=SUA_SENHA_FIAP
 ```
 
-**3. Execute os scripts SQL** (na ordem)
+**3. Execute os scripts SQL na ordem**
 ```
 01_create_tables.sql
 02_procedures_carga.sql
@@ -172,60 +183,83 @@ spring.datasource.password=SUA_SENHA_FIAP
 mvn spring-boot:run
 ```
 
+Ou pelo IntelliJ: execute `ProjetoOrbitAlertApplication.java`
+
 **5. Acesse o Swagger**
 ```
 http://localhost:8080/swagger
 ```
 
+**6. Siga o fluxo de autenticação descrito acima**
+
 ---
 
 ## 📡 Endpoints
 
-| Recurso | Base URL | Endpoints especiais |
+| Recurso | Base URL | Endpoints extras |
 |---|---|---|
 | Autenticação | `/autenticacao` | `POST /login` |
 | Usuários | `/usuario` | `/perfil`, `/municipio/{id}` |
-| Municípios | `/municipio` | `/dashboard`, `/com-alertas` |
-| Vínculos Usuário-Município | `/usuario-municipio` | `/usuario/{id}`, `/municipio/{id}` |
+| Municípios | `/municipio` | `/dashboard` (Record), `/com-alertas` |
+| Vínculos | `/usuario-municipio` | `/usuario/{id}`, `/municipio/{id}` |
 | Zonas de Risco | `/zona-risco` | — |
 | Estações IoT | `/estacao-iot` | — |
-| Leituras IoT | `/leitura-iot` | `POST /mqtt` (payload ESP32) |
+| Leituras IoT | `/leitura-iot` | `POST /mqtt` (ESP32) |
 | Tipos de Alerta | `/tipo-alerta` | — |
-| Alertas | `/alerta` | `/resumo`, `/status`, `/municipio/{id}`, `/criticos` |
+| Alertas | `/alerta` | `/resumo` (Record), `/status`, `/municipio/{id}`, `/criticos` |
 | Análises IA | `/analise-ia` | — |
-| Histórico de Alertas | `/historico-alerta` | — |
+| Histórico Alertas | `/historico-alerta` | — |
 | Notificações | `/notificacao` | — |
 
-Cada recurso expõe o padrão REST completo:
+Padrão de cada recurso:
 
 ```
 GET    /todos           → lista todos
-GET    /paginar         → lista paginada (?page=0&size=5)
-GET    /{id}            → busca por ID com HATEOAS
-POST   /novo            → cria novo registro
-PUT    /atualizar/{id}  → atualiza registro
-DELETE /remover/{id}    → remove registro
+GET    /paginar         → paginado (?page=0&size=5)
+GET    /{id}            → por ID com HATEOAS
+POST   /novo            → criar
+PUT    /atualizar/{id}  → atualizar
+DELETE /remover/{id}    → remover
 ```
+
+### Endpoints públicos (sem token)
+
+```
+POST /usuario/novo
+POST /autenticacao/login
+GET  /swagger-ui/**
+GET  /v3/**
+GET  /swagger/**
+```
+
+---
+
+## 🧪 Testando no Swagger
+
+1. Acesse `http://localhost:8080/swagger`
+2. Execute `POST /usuario/novo` para criar seu usuário
+3. Execute `POST /autenticacao/login` com email e senha — copie o token retornado
+4. Clique em **Authorize** (cadeado no topo) e cole: `Bearer <seu_token>`
+5. Todos os endpoints estarão liberados
 
 ---
 
 ## ✅ Requisitos Técnicos Atendidos
 
-- [x] API REST com verbos HTTP corretos e HTTP Status Codes (200, 201, 204, 400, 404, 422, 500)
-- [x] HATEOAS nos endpoints `GET /{id}` (`selfLink` + `todosLink`)
-- [x] Entidades JPA com relacionamentos (`@OneToMany`, `@ManyToOne`, `@OneToOne`, `@ManyToMany`)
-- [x] Modelagem avançada: herança (`BaseEntity`), chave composta (`@EmbeddedId`), `@Embeddable`
-- [x] Bean Validation nos DTOs (`@NotBlank`, `@Email`, `@Min`, `@Max`, `@DecimalMin`, `@DecimalMax`)
-- [x] Java Records para transferência de dados (`AlertaResumoRecord`, `LeituraIotRecord`, `MunicipioRiscoRecord`, `ErroResponseRecord`)
-- [x] DTOs separados das entidades com MapStruct (`@Mapper`)
-- [x] Paginação com `PageRequest` nos endpoints `/paginar`
-- [x] Cache nas consultas frequentes (`@Cacheable`, `@CacheEvict`)
-- [x] Tratamento global de exceções (`@RestControllerAdvice`) com `ErroResponseRecord`
-- [x] Spring Security + JWT — endpoints protegidos, sessão stateless
-- [x] Documentação Swagger/OpenAPI com autenticação Bearer JWT
-- [x] CORS configurado para aceitar requisições do app mobile
-- [x] JPQL e Native Queries nos Repositories
-- [x] Deploy em nuvem (Railway)
+- [x] API REST com verbos HTTP e status codes corretos (200, 201, 204, 400, 404, 422, 500)
+- [x] HATEOAS nos endpoints `GET /{id}`
+- [x] Entidades JPA com relacionamentos (`@OneToMany`, `@ManyToOne`, `@OneToOne`)
+- [x] Herança — `BaseEntity` com `DT_CADASTRO` estendida por `Usuario`, `Municipio` e `ZonaRisco`
+- [x] Chave composta — `UsuarioMunicipioPK` com `@EmbeddedId` em `UsuarioMunicipio`
+- [x] Bean Validation nos DTOs (`@NotBlank`, `@Email`, `@Min`, `@Max`)
+- [x] Java Records — `AlertaResumoRecord`, `LeituraIotRecord`, `MunicipioRiscoRecord`, `ErroResponseRecord`
+- [x] MapStruct para conversão entre entidade e DTO
+- [x] Paginação com `PageRequest`
+- [x] Cache com `@Cacheable` e `@CacheEvict`
+- [x] Tratamento global de exceções com `@RestControllerAdvice`
+- [x] Spring Security + JWT — stateless, BCrypt, endpoints públicos configurados
+- [x] Swagger com autenticação Bearer JWT
+- [x] CORS configurado para app mobile
 
 ---
 
@@ -246,4 +280,4 @@ DELETE /remover/{id}    → remove registro
 ## 📚 Disciplina
 
 **Java Advanced** — FIAP 2026 · 1º Semestre · Turma 2TDS Fevereiro
-Global Solution 2026/1 — Tema: **Economia Espacial**
+Global Solution 2026/1 — Tema: **Economia Espacial** 
