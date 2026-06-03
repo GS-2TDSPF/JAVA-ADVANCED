@@ -27,7 +27,7 @@ Esta API Java Spring Boot é o **hub central** da solução — gerencia o ciclo
 
 | Recurso | Link |
 |---|---|
-| 🚀 **Deploy (Railway)** | `https://orbitalert.up.railway.app` |
+| 🚀 **Deploy ** | `https://java-advanced-2-7tix.onrender.com` |
 | 📄 **Swagger / OpenAPI** | `http://localhost:8080/swagger-ui/index.html#/` |
 | 🎥 **Vídeo de Apresentação** | *(link após gravação)* |
 | 📦 **GitHub** | `https://github.com/GS-2TDSPF/JAVA-ADVANCED` |
