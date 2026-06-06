@@ -30,6 +30,7 @@ Esta API Java Spring Boot é o **hub central** da solução — gerencia o ciclo
 | 🚀 **Deploy ** | `https://java-advanced-2-7tix.onrender.com` |
 | 📄 **Swagger / OpenAPI** | `https://java-advanced-2-7tix.onrender.com/swagger-ui/index.html` |
 | 🎥 **Vídeo de Apresentação** | `https://www.youtube.com/watch?v=ach61l1-NzU` |
+| 🎥 **Vídeo pitch** | ` https://youtu.be/96OZFLMUHDs` |
 | 📦 **GitHub** | `https://github.com/GS-2TDSPF/JAVA-ADVANCED` |
 
 Acesse o link do swagger para fazer teste na API
